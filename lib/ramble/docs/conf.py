@@ -29,7 +29,9 @@ import pkg_resources
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 link_name = os.path.abspath("_ramble_root")
 if not os.path.exists(link_name):
-    os.symlink(os.path.abspath("../../.."), link_name, target_is_directory=True)
+    os.symlink(os.path.abspath("../../.."),
+               link_name,
+               target_is_directory=True)
 
 sys.path.insert(0, os.path.abspath("_ramble_root/lib/ramble/external"))
 sys.path.append(os.path.abspath("_ramble_root/lib/ramble/"))
@@ -38,7 +40,8 @@ import ramble  # noqa: E402
 
 # Add the Ramble bin directory to the path so that we can use its output in docs.
 os.environ["RAMBLE_ROOT"] = os.path.abspath("_ramble_root")
-os.environ["PATH"] += "%s%s" % (os.pathsep, os.path.abspath("_ramble_root/bin"))
+os.environ["PATH"] += "%s%s" % (os.pathsep,
+                                os.path.abspath("_ramble_root/bin"))
 
 # Set an environment variable so that colify will print output like it would to
 # a terminal.
@@ -46,18 +49,16 @@ os.environ["COLIFY_SIZE"] = "25x120"
 os.environ["COLUMNS"] = "120"
 
 # Generate full package list if needed
-subprocess.call(["ramble", "list", "--format=html", "--update=package_list.html"])
+subprocess.call(
+    ["ramble", "list", "--format=html", "--update=package_list.html"])
 
 # Generate a command index if an update is needed
-subprocess.call(
-    [
-        "ramble",
-        "commands",
-        "--format=rst",
-        "--update=command_index.rst",
-    ]
-    + glob("*rst")
-)
+subprocess.call([
+    "ramble",
+    "commands",
+    "--format=rst",
+    "--update=command_index.rst",
+] + glob("*rst"))
 
 #
 # Run sphinx-apidoc
@@ -73,12 +74,9 @@ apidoc_args = [
     "--module-first",  # emit module docs before submodule docs
     "--implicit-namespaces"
 ]
-sphinx_apidoc(
-    apidoc_args
-    + [
-        "_ramble_root/lib/ramble/ramble",
-    ]
-)
+sphinx_apidoc(apidoc_args + [
+    "_ramble_root/lib/ramble/ramble",
+])
 
 # Enable todo items
 todo_include_todos = True
@@ -88,12 +86,14 @@ todo_include_todos = True
 # Disable duplicate cross-reference warnings.
 #
 class PatchedPythonDomain(PythonDomain):
-    def resolve_xref(self, env, fromdocname, builder, typ, target, node, contnode):
+
+    def resolve_xref(self, env, fromdocname, builder, typ, target, node,
+                     contnode):
         if "refspecific" in node:
             del node["refspecific"]
-        return super(PatchedPythonDomain, self).resolve_xref(
-            env, fromdocname, builder, typ, target, node, contnode
-        )
+        return super(PatchedPythonDomain,
+                     self).resolve_xref(env, fromdocname, builder, typ, target,
+                                        node, contnode)
 
 
 #
@@ -101,6 +101,7 @@ class PatchedPythonDomain(PythonDomain):
 # since Makefiles require tabs.
 #
 class NoTabExpansionRSTParser(RSTParser):
+
     def parse(self, inputstring, document):
         if isinstance(inputstring, str):
             lines = inputstring.splitlines()
@@ -130,6 +131,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinxcontrib.programoutput",
     "sphinxcontrib.jquery",
+    "sphinx_copybutton",
 ]
 
 # Set default graphviz options
@@ -235,7 +237,6 @@ pkg_resources.working_set.add(dist)
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
 
-
 # -- Options for HTML output ---------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -315,7 +316,6 @@ html_last_updated_fmt = "%b %d, %Y"
 # Output file base name for HTML help builder.
 htmlhelp_basename = "Rambledoc"
 
-
 # -- Options for LaTeX output --------------------------------------------------
 
 latex_elements = {
@@ -353,7 +353,6 @@ latex_documents = [
 # If false, no module index is generated.
 # latex_domain_indices = True
 
-
 # -- Options for manual page output --------------------------------------------
 
 # One entry per manual page. List of tuples
@@ -362,7 +361,6 @@ man_pages = [("index", "Ramble", "Ramble Documentation", ["Google LLC"], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
-
 
 # -- Options for Texinfo output ------------------------------------------------
 
@@ -389,10 +387,15 @@ texinfo_documents = [
 # How to display URL addresses: 'footnote', 'no', or 'inline'.
 # texinfo_show_urls = 'footnote'
 
-
 # -- Extension configuration -------------------------------------------------
 
 # sphinx.ext.intersphinx
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
 }
+
+# sphinx_copybutton
+# Do not copy the prompt, or any console outputs.
+copybutton_exclude = '.gp, .go'
+# Escape hatch for turning off the copy button.
+copybutton_selector = "div:not(.hide-copy) > div.highlight > pre"
