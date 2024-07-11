@@ -35,7 +35,7 @@ ramble:
   applications:
     hostname:
       workloads:
-        local:
+        parallel:
           experiments:
             multi-node-test:
               variables:
@@ -43,8 +43,6 @@ ramble:
             single-node-test:
               variables:
                 n_nodes: '1'
-  modifiers:
-  - name: gcp-metadata
   spack:
     packages: {}
     environments: {}
@@ -63,14 +61,14 @@ ramble:
     workspace("setup", "--dry-run", global_args=["-w", workspace_name])
 
     single_setup_out = os.path.join(
-        ws.log_dir, "setup.latest", "hostname.local.single-node-test.out"
+        ws.log_dir, "setup.latest", "hostname.parallel.single-node-test.out"
     )
     with open(single_setup_out) as f:
         content = f.read()
         assert "Warning:" not in content
 
     multi_setup_out = os.path.join(
-        ws.log_dir, "setup.latest", "hostname.local.multi-node-test.out"
+        ws.log_dir, "setup.latest", "hostname.parallel.multi-node-test.out"
     )
     with open(multi_setup_out) as f:
         content = f.read()
