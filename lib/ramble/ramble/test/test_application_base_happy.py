@@ -18,8 +18,7 @@ def test_application_base_bootstrap_utilities_happy(
     ws = ramble.workspace.create("test_succ_happy")
     os.makedirs(os.path.dirname(ws.config_file_path), exist_ok=True)
     with open(ws.config_file_path, "w", encoding="utf-8") as f:
-        f.write(
-            """ramble:
+        f.write("""ramble:
   config:
     bootstrap_utilities: True
   applications:
@@ -33,8 +32,7 @@ def test_application_base_bootstrap_utilities_happy(
   utilities:
     spack:
       git: mygit
-"""
-        )
+""")
     ws._re_read()
     filters = ramble.filters.Filters()
     with ws:

@@ -21,8 +21,7 @@ def test_application_base_bootstrap_utilities_opt_out(mutable_config, mutable_mo
 
     os.makedirs(os.path.dirname(ws.config_file_path), exist_ok=True)
     with open(ws.config_file_path, "w", encoding="utf-8") as f:
-        f.write(
-            """ramble:
+        f.write("""ramble:
   config:
     bootstrap_utilities: False
   variables:
@@ -43,8 +42,7 @@ def test_application_base_bootstrap_utilities_opt_out(mutable_config, mutable_mo
     spack:
       git: https://github.com/my/ext_dep.git
       commit: v2.0
-"""
-        )
+""")
     ws._re_read()
     filters = ramble.filters.Filters()
 
@@ -70,8 +68,7 @@ def test_application_base_validate_versions_die(
 
     os.makedirs(os.path.dirname(ws.config_file_path), exist_ok=True)
     with open(ws.config_file_path, "w", encoding="utf-8") as f:
-        f.write(
-            """ramble:
+        f.write("""ramble:
   config:
     bootstrap_utilities: True
   variables:
@@ -92,8 +89,7 @@ def test_application_base_validate_versions_die(
     spack:
       git: https://github.com/my/ext_dep.git
       commit: v2.0
-"""
-        )
+""")
     ws._re_read()
     filters = ramble.filters.Filters()
 
