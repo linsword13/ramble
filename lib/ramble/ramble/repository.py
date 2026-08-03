@@ -43,8 +43,8 @@ global_namespace = "ramble"
 #: Guaranteed unused default value for some functions.
 NOT_PROVIDED = object()
 
-_NAMESPACE_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9_.]+")
-_VALID_NAMESPACE_RE = re.compile(r"\w[\.\w-]*")
+_NAMESPACE_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_.]+$")
+_VALID_NAMESPACE_RE = re.compile(r"^\w[\.\w-]*$")
 
 
 ####

@@ -109,3 +109,8 @@ def test_list_object_files(
         assert expected[i][0] == actual[i][0]
         assert actual[i][1].endswith(expected[i][1])
         assert expected[i][2] == actual[i][2]
+
+
+def test_invalid_namespace(tmpdir):
+    with pytest.raises(ramble.repository.InvalidNamespaceError):
+        ramble.repository.create_repo(str(tmpdir.join("bad_repo")), namespace="foo!bar")
