@@ -244,8 +244,7 @@ def first_existing(dictionary, keys):
     for k in keys:
         if k in dictionary:
             return k
-    else:
-        raise KeyError(f"None of {keys} is in dict!")
+    raise KeyError(f"None of {keys} is in dict!")
 
 
 class ConfigScope:
