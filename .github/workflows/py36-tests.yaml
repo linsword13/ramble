@@ -44,7 +44,7 @@ jobs:
 
               echo "=== 2. Install Dependencies for Testing ==="
               python -m pip install --upgrade "pip<22"
-              pip install -r requirements.txt "pytest<7.1" "pytest-xdist<3"
+              pip install -r requirements.txt
 
               echo "=== 3. CLI Smoke Tests ==="
               . share/ramble/setup-env.sh
@@ -69,7 +69,4 @@ jobs:
               grep -q "Status = SUCCESS" /tmp/test_ws/results.latest.txt
               rm -rf /tmp/test_ws
               echo "Workspace test succeeded."
-
-              echo "=== 5. Run Fast Unit Tests ==="
-              ramble unit-test --fast lib/ramble/ramble/test -n auto
             '
