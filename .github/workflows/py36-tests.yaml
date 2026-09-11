@@ -33,7 +33,7 @@ jobs:
             -w /ramble \
             python:3.6-buster \
             bash -c '
-              set -e
+              set -ex
 
               # Prevent dubious ownership warnings when running git inside container
               git config --global --add safe.directory /ramble || true
