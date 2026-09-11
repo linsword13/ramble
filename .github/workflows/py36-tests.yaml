@@ -71,5 +71,5 @@ jobs:
               echo "Workspace test succeeded."
 
               echo "=== 5. Run Fast Unit Tests ==="
-              ramble unit-test --fast -n auto
+              ramble unit-test --fast lib/ramble/ramble/test -n auto
             '
