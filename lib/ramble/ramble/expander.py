@@ -144,7 +144,7 @@ if sys.version_info >= (3, 8):
     def _is_name_constant_node(node):
         return False
 
-else:
+else:  # pragma: no cover
 
     def _is_str_node(node):
         return isinstance(node, _AST_STR)
@@ -1042,7 +1042,7 @@ class Expander:
         try:
             if hasattr(ast, "Constant") and isinstance(node, ast.Constant):
                 return self._ast_constant(node)
-            elif _is_name_constant_node(node):
+            elif _is_name_constant_node(node):  # pragma: no cover
                 return self._ast_constant(node)
             elif _is_num_node(node):
                 return self._ast_num(node)

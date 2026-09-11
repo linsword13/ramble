@@ -19,7 +19,7 @@ style_cmd = main.RambleCommand("style")
 
 def _require_tools(*tool_names):
     missing = [t for t in tool_names if which(t) is None]
-    if missing:
+    if missing:  # pragma: no cover
         pytest.skip(f"Required style tool(s) not installed: {', '.join(missing)}")
 
 

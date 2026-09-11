@@ -72,7 +72,7 @@ def __getattr__(name: str):
         raise
 
 
-if sys.version_info < (3, 7):
+if sys.version_info < (3, 7):  # pragma: no cover
     import types
 
     class _SchemaModule(types.ModuleType):
