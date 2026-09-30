@@ -536,7 +536,7 @@ def test_multiline_format_lines_by_invalid(capsys, fast_plot_write):
     assert "non_existent_var_or_fom was not found in the results data" in captured
 
 
-def test_multiline_format_lines_by_fom(fast_plot_write):
+def test_multiline_format_lines_by_fom(capsys, fast_plot_write):
     test_exps = [
         create_test_exp_result(
             ramble_status="SUCCESS",
@@ -546,6 +546,7 @@ def test_multiline_format_lines_by_fom(fast_plot_write):
             foms=[
                 ("null", ("fom_1", 10.0, "s", "app", "application", foms.FomType.TIME)),
                 ("null", ("fom_2", 20.0, "s", "app", "application", foms.FomType.TIME)),
+                ("null", ("mode", "dense", "", "app", "application", foms.FomType.CATEGORY)),
             ],
             ramble_vars={"repeat_index": "0"},
             ramble_raw_vars={},
@@ -563,8 +564,87 @@ def test_multiline_format_lines_by_fom(fast_plot_write):
         format_lines_by="fom_2",
     )
     with PdfPages(io.BytesIO()) as pdf_report:
-        with pytest.raises(KeyError):
+        with pytest.raises(SystemExit):
             plot.generate_plot_data(pdf_report)
+    captured = capsys.readouterr().err
+    assert "'fom_2' is a non-categorical Figure of Merit" in captured
+    assert "Available categorical FOMs: 'mode'" in captured
+
+
+def test_multiline_format_lines_by_categorical_fom(
+    mutable_mock_workspace_path, mutable_config, tmpdir_factory, monkeypatch
+):
+    results_dir_path = tmpdir_factory.mktemp("unit_test_fmt_cat")
+    results_file = os.path.join(results_dir_path, "results.json")
+
+    test_exps = [
+        create_test_exp_result(
+            ramble_status="SUCCESS",
+            experiment_name=f"exp_{i}",
+            application_name="app",
+            workload_name="wl",
+            foms=[
+                ("null", ("fom_1", 10.0 * i, "s", "app", "application", foms.FomType.TIME)),
+                (
+                    "null",
+                    (
+                        "mode",
+                        f"mode_{i % 2}",
+                        "",
+                        "app",
+                        "application",
+                        foms.FomType.CATEGORY,
+                    ),
+                ),
+            ],
+            ramble_vars={"repeat_index": "0"},
+            ramble_raw_vars={},
+            n_nodes=i,
+        )
+        for i in range(1, 5)
+    ]
+
+    test_exp_results = {"experiments": test_exps}
+
+    with open(results_file, "w+", encoding="utf-8") as f:
+        json_util.dump(test_exp_results, f)
+
+    captured_linestyles = []
+    orig_write = ramble.reports.MultiLinePlot.write
+
+    def spy_write(self, fig, filename, pdf_report):
+        if filename.startswith("multi_line"):
+            ax = fig.axes[0]
+            captured_linestyles.extend([line.get_linestyle() for line in ax.get_lines()])
+        return orig_write(self, fig, filename, pdf_report)
+
+    monkeypatch.setattr(ramble.reports.MultiLinePlot, "write", spy_write)
+
+    with ramble.config.override("config:report_dirs", results_dir_path):
+        output = results(
+            "report",
+            "-f",
+            results_file,
+            "--multi-line",
+            "fom_1",
+            "n_nodes",
+            "--split-by",
+            "application_name",
+            "--format-lines-by",
+            "mode",
+        )
+
+    assert "Report generated successfully" in output
+
+    timestamp_capture = re.compile(r"\.(\d{4}-\d{2}-\d{2}_\d{2}\.\d{2}\.\d{2})")
+    ts = timestamp_capture.search(output).group(1)
+    out_path = os.path.join(results_dir_path, f"unknown_workspace.{ts}")
+
+    assert os.path.isdir(out_path)
+    assert os.path.isfile(os.path.join(out_path, f"unknown_workspace.{ts}.multi_line.pdf"))
+
+    assert len(set(captured_linestyles)) == 2
+    assert set(captured_linestyles) == {"-", "--"}
 
 
 def test_multiline_format_lines_by_mixed_values(fast_plot_write):
@@ -1473,3 +1553,33 @@ def test_get_reports_path_missing_config(mutable_config):
     ramble.config.set("config:report_dirs", None)
     with pytest.raises(SystemExit):
         ramble.reports.get_reports_path()
+
+
+def test_generate_result_index_categorical_foms():
+    test_exps = [
+        create_test_exp_result(
+            ramble_status="SUCCESS",
+            experiment_name="exp_1",
+            application_name="app",
+            workload_name="wl",
+            foms=[
+                ("null", ("fom_1", 10.0, "s", "app", "application", foms.FomType.TIME)),
+                ("null", ("mode", "dense", "", "app", "application", foms.FomType.CATEGORY)),
+                ("null", ("mod_cat", "active", "", "my_mod", "modifier", foms.FomType.CATEGORY)),
+            ],
+            ramble_vars={"repeat_index": "0"},
+            ramble_raw_vars={},
+            n_nodes=1,
+        )
+    ]
+    idx = ramble.reports.generate_result_index(test_exps)
+    assert "Categorical FOMs" in idx["applications"]["app"]["wl"]
+    assert "mode" in idx["applications"]["app"]["wl"]["Categorical FOMs"]
+    assert "fom_1" in idx["applications"]["app"]["wl"]["FOMs"]
+    assert "mode" not in idx["applications"]["app"]["wl"]["FOMs"]
+
+    assert "Categorical FOMs" in idx["modifiers"]["my_mod"]
+    assert "mod_cat" in idx["modifiers"]["my_mod"]["Categorical FOMs"]
+
+    assert ramble.reports.get_categorical_foms(idx) == {"mode", "mod_cat"}
+    assert ramble.reports.get_all_foms(idx) == {"fom_1", "mode", "mod_cat"}

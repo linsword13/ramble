@@ -28,6 +28,15 @@ class BetterDirection(Enum):
         except KeyError:
             return None
 
+    @classmethod
+    def from_value(cls, val):
+        """Coerce a BetterDirection enum, string, or None to a BetterDirection."""
+        if isinstance(val, cls):
+            return val
+        if isinstance(val, str):
+            return cls.from_str(val)
+        return None
+
 
 class FomType(Enum):
     """Classification of a Figure of Merit (FOM).
@@ -66,6 +75,17 @@ class FomType(Enum):
             return cls[string.upper()]
         except KeyError:
             return None
+
+    @classmethod
+    def from_value(cls, val):
+        """Coerce a FomType enum member, serialized dictionary, or string to a FomType."""
+        if isinstance(val, cls):
+            return val
+        if isinstance(val, dict) and "name" in val:
+            return cls.from_str(str(val["name"]))
+        if isinstance(val, str):
+            return cls.from_str(val)
+        return None
 
     def to_dict(self):
         """Converts the FomType enum member to a dictionary representation."""

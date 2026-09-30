@@ -45,3 +45,35 @@ def test_get_literal_from_regex_missing_sre_parse(monkeypatch):
     monkeypatch.setattr(ramble.util.foms, "sre_parse", None)
 
     assert get_literal_from_regex(r"Sleep for (?P<time>[0-9]+) seconds") == ""
+
+
+def test_fom_type_from_value():
+    from ramble.util.foms import BetterDirection, FomType
+
+    # Enum instances
+    assert FomType.from_value(FomType.CATEGORY) == FomType.CATEGORY
+    assert FomType.from_value(FomType.TIME) == FomType.TIME
+
+    # Serialized dicts
+    assert (
+        FomType.from_value({"name": "CATEGORY", "better_direction": "INAPPLICABLE"})
+        == FomType.CATEGORY
+    )
+    assert FomType.from_value({"name": "time"}) == FomType.TIME
+
+    # Strings
+    assert FomType.from_value("category") == FomType.CATEGORY
+    assert FomType.from_value("MEASURE") == FomType.MEASURE
+
+    # Invalid / None
+    assert FomType.from_value(None) is None
+    assert FomType.from_value("invalid_type") is None
+    assert FomType.from_value({}) is None
+    assert FomType.from_value(123) is None
+
+    # BetterDirection from_value
+    assert BetterDirection.from_value(BetterDirection.HIGHER) == BetterDirection.HIGHER
+    assert BetterDirection.from_value("higher") == BetterDirection.HIGHER
+    assert BetterDirection.from_value("lower") == BetterDirection.LOWER
+    assert BetterDirection.from_value(None) is None
+    assert BetterDirection.from_value("invalid") is None

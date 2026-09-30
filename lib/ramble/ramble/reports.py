@@ -401,6 +401,7 @@ def generate_result_index(experiments: list, all_vars=False, where_query=None):
                 continue
             app_dict[wl_name]["Contexts"].add(context["name"])
             for fom in context["foms"]:
+                is_cat = FomType.from_value(fom.get("fom_type")) == FomType.CATEGORY
                 if fom["origin"] == app_name:
                     # If it's a repeat summary, add summary FOMs and stat names
                     if fom["name"] == SummaryFoms.SUMMARY.value:
@@ -415,14 +416,24 @@ def generate_result_index(experiments: list, all_vars=False, where_query=None):
                                 app_dict[wl_name]["FOM Summary Statistics"] = set()
                             app_dict[wl_name]["FOM Summary Statistics"].add(summary_shortname)
 
-                        app_dict[wl_name]["FOMs"].add(fom["name"])
+                        if is_cat:
+                            if "Categorical FOMs" not in app_dict[wl_name]:
+                                app_dict[wl_name]["Categorical FOMs"] = set()
+                            app_dict[wl_name]["Categorical FOMs"].add(fom["name"])
+                        else:
+                            app_dict[wl_name]["FOMs"].add(fom["name"])
                 else:
                     # All other objects
                     if fom["origin_type"] in OBJECT_NAMES:
                         obj_dict = result_index[OBJECT_NAMES[fom["origin_type"]]]
                         if fom["origin"] not in obj_dict:
                             obj_dict[fom["origin"]] = {"FOMs": set()}
-                        obj_dict[fom["origin"]]["FOMs"].add(fom["name"])
+                        if is_cat:
+                            if "Categorical FOMs" not in obj_dict[fom["origin"]]:
+                                obj_dict[fom["origin"]]["Categorical FOMs"] = set()
+                            obj_dict[fom["origin"]]["Categorical FOMs"].add(fom["name"])
+                        else:
+                            obj_dict[fom["origin"]]["FOMs"].add(fom["name"])
 
     # Extract template variables used to parameterize experiments
     capture_group = r"(\w+)"
@@ -448,14 +459,30 @@ def get_all_foms(result_index):
         if obj_type == namespace.application:
             for app_dict in obj_type_dict.values():
                 for wl_dict in app_dict.values():
-                    all_foms.update(wl_dict["FOMs"])
+                    all_foms.update(wl_dict.get("FOMs", set()))
+                    all_foms.update(wl_dict.get("Categorical FOMs", set()))
                     if SummaryFoms.SUMMARY.value in wl_dict:
                         all_foms.update(wl_dict[SummaryFoms.SUMMARY.value])
         else:
             for obj_dict in obj_type_dict.values():
-                all_foms.update(obj_dict["FOMs"])
+                all_foms.update(obj_dict.get("FOMs", set()))
+                all_foms.update(obj_dict.get("Categorical FOMs", set()))
 
     return all_foms
+
+
+def get_categorical_foms(result_index):
+    cat_foms = set()
+    for obj_type, obj_type_dict in result_index.items():
+        if obj_type == namespace.application:
+            for app_dict in obj_type_dict.values():
+                for wl_dict in app_dict.values():
+                    cat_foms.update(wl_dict.get("Categorical FOMs", set()))
+        else:
+            for obj_dict in obj_type_dict.values():
+                cat_foms.update(obj_dict.get("Categorical FOMs", set()))
+
+    return cat_foms
 
 
 def get_all_vars(result_index):
@@ -498,10 +525,20 @@ def extract_data(experiments: List[dict], foms: List[str], variables: List[str],
                         if name in _FOM_DICT_MAPPING:
                             exp_data[_FOM_DICT_MAPPING[name]] = val
                         elif name == "fom_type":
-                            exp_data["fom_type"] = FomType.from_str(fom["fom_type"]["name"])
-                            exp_data[ReportVars.BETTER_DIRECTION] = BetterDirection.from_str(
-                                fom["fom_type"][ReportVars.BETTER_DIRECTION]
-                            )
+                            fom_type_obj = FomType.from_value(val)
+                            if fom_type_obj:
+                                exp_data["fom_type"] = fom_type_obj
+                                if isinstance(val, dict) and ReportVars.BETTER_DIRECTION in val:
+                                    exp_data[ReportVars.BETTER_DIRECTION] = (
+                                        BetterDirection.from_value(
+                                            val[ReportVars.BETTER_DIRECTION]
+                                        )
+                                        or fom_type_obj.better_direction()
+                                    )
+                                else:
+                                    exp_data[ReportVars.BETTER_DIRECTION] = (
+                                        fom_type_obj.better_direction()
+                                    )
 
                     # older data exports may not have fom_type stored
                     if "fom_type" not in exp_data:
@@ -809,13 +846,27 @@ class ScalingPlotGenerator(PlotGenerator):
         perf_measure, scale_var, *additional_vars = self.spec
 
         all_foms = get_all_foms(self.result_index)
+        cat_foms = get_categorical_foms(self.result_index)
         all_vars = get_all_vars(self.result_index)
 
         if self.format_lines_by:
-            if self.format_lines_by not in all_foms and self.format_lines_by not in all_vars:
+            if self.format_lines_by in all_foms and self.format_lines_by not in all_vars:
+                if self.format_lines_by not in cat_foms:
+                    if cat_foms:
+                        cat_list = ", ".join(f"'{f}'" for f in sorted(cat_foms))
+                        cat_msg = f"Available categorical FOMs: {cat_list}. "
+                    else:
+                        cat_msg = "No categorical FOMs were found in the results data. "
+                    logger.die(
+                        f"'{self.format_lines_by}' is a non-categorical Figure of Merit. "
+                        "--format-lines-by only supports experiment variables and "
+                        f"categorical FOMs (FomType.CATEGORY). {cat_msg}"
+                        "Use `ramble results index -v` to see available variables."
+                    )
+            elif self.format_lines_by not in all_vars:
                 logger.die(
                     f"{self.format_lines_by} was not found in the results data. "
-                    "Use `ramble results index -v` to see available FOMs and variables."
+                    "Use `ramble results index -v` to see available variables."
                 )
 
         foms = [perf_measure]
@@ -831,7 +882,7 @@ class ScalingPlotGenerator(PlotGenerator):
                 variables.append(var)
 
         if self.format_lines_by:
-            if self.format_lines_by in all_foms:
+            if self.format_lines_by in all_foms and self.format_lines_by not in all_vars:
                 if self.format_lines_by not in foms:
                     foms.append(self.format_lines_by)
             elif self.format_lines_by not in variables:
@@ -874,33 +925,61 @@ class ScalingPlotGenerator(PlotGenerator):
                     if unit_val:
                         self.scale_unit = unit_val
 
+        foms_to_convert = []
         if scale_var in all_foms:
+            foms_to_convert.append(scale_var)
+        if (
+            self.format_lines_by
+            and self.format_lines_by in all_foms
+            and self.format_lines_by not in all_vars
+            and self.format_lines_by not in foms_to_convert
+        ):
+            foms_to_convert.append(self.format_lines_by)
+
+        if foms_to_convert:
             if ReportVars.FOM_ORIGIN_TYPE in results.columns:
                 results["_merge_origin_type"] = results[ReportVars.FOM_ORIGIN_TYPE].apply(
-                    lambda x: x if isinstance(x, str) and x.startswith("summary::") else "raw"
+                    lambda x: (
+                        x
+                        if isinstance(x, str)
+                        and x.startswith(("summary::", f"summary{NS_SEPARATOR}"))
+                        else "raw"
+                    )
                 )
                 origin_key = "_merge_origin_type"
             else:
                 origin_key = ReportVars.FOM_ORIGIN_TYPE
 
-            merge_keys = [
-                k
-                for k in [
-                    ReportVars.EXP_NAME,
-                    ReportVars.CONTEXT_NAME,
-                    origin_key,
-                ]
-                if k in results.columns
-            ]
-            scale_df = (
-                results[results[ReportVars.FOM_NAME] == scale_var][
-                    merge_keys + [ReportVars.FOM_VALUE]
-                ]
-                .rename(columns={ReportVars.FOM_VALUE: scale_var})
-                .drop_duplicates(subset=merge_keys)
-            )
+            fom_dfs = []
+            for fom_col in foms_to_convert:
+                merge_keys = [ReportVars.EXP_NAME]
+                if ReportVars.CONTEXT_NAME in results.columns:
+                    perf_contexts = set(
+                        results[results[ReportVars.FOM_NAME] == perf_measure][
+                            ReportVars.CONTEXT_NAME
+                        ]
+                    )
+                    fom_contexts = set(
+                        results[results[ReportVars.FOM_NAME] == fom_col][ReportVars.CONTEXT_NAME]
+                    )
+                    if perf_contexts == fom_contexts:
+                        merge_keys.append(ReportVars.CONTEXT_NAME)
+                if origin_key in results.columns:
+                    merge_keys.append(origin_key)
+
+                fom_df = (
+                    results[results[ReportVars.FOM_NAME] == fom_col][
+                        merge_keys + [ReportVars.FOM_VALUE]
+                    ]
+                    .rename(columns={ReportVars.FOM_VALUE: fom_col})
+                    .drop_duplicates(subset=merge_keys)
+                )
+                fom_dfs.append((fom_df, merge_keys))
+
             results = results[results[ReportVars.FOM_NAME] == perf_measure].copy()
-            results = results.merge(scale_df, on=merge_keys, how="inner")
+            for fom_df, merge_keys in fom_dfs:
+                results = results.merge(fom_df, on=merge_keys, how="inner")
+
             if "_merge_origin_type" in results.columns:
                 results.drop(columns=["_merge_origin_type"], inplace=True)
 
@@ -921,7 +1000,7 @@ class ScalingPlotGenerator(PlotGenerator):
             results.loc[:, ReportVars.SERIES] = (
                 results.loc[:, ReportVars.SERIES]
                 + "_x_"
-                + results[additional_vars].agg("_x_".join, axis=1)
+                + results[additional_vars].astype(str).agg("_x_".join, axis=1)
             )
 
         for series in results.loc[:, ReportVars.SERIES].unique():
