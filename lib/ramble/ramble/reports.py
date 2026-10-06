@@ -97,10 +97,11 @@ _KEYS_TO_SKIP = frozenset(
 )
 
 INVENTORY_FILENAME = "inventory.yaml"
-OBJECT_NAMES = {
-    ramble.repository.type_definitions[obj]["singular"]: obj.name
-    for obj in ramble.repository.ObjectTypes
-}
+OBJECT_NAMES = {}
+for obj in ramble.repository.ObjectTypes:
+    singular = ramble.repository.type_definitions[obj]["singular"]
+    OBJECT_NAMES[singular] = obj.name
+    OBJECT_NAMES[singular.replace(" ", "_")] = obj.name
 
 
 def to_numeric_if_possible(series):
@@ -897,11 +898,23 @@ class ScalingPlotGenerator(PlotGenerator):
 
         self.additional_vars = additional_vars
 
+        foms_to_convert = []
+        if scale_var in all_foms:
+            foms_to_convert.append(scale_var)
+        if (
+            self.format_lines_by
+            and self.format_lines_by in all_foms
+            and self.format_lines_by not in all_vars
+            and self.format_lines_by not in foms_to_convert
+        ):
+            foms_to_convert.append(self.format_lines_by)
+
+        where_for_extract = None if foms_to_convert else self.where
         results = extract_data(
             self.exp_results,
             foms,
             variables,
-            where_query=self.where,
+            where_query=where_for_extract,
         )
 
         if results.empty:
@@ -924,17 +937,6 @@ class ScalingPlotGenerator(PlotGenerator):
                     unit_val = str(scale_rows[ReportVars.FOM_UNITS].iloc[0]).strip()
                     if unit_val:
                         self.scale_unit = unit_val
-
-        foms_to_convert = []
-        if scale_var in all_foms:
-            foms_to_convert.append(scale_var)
-        if (
-            self.format_lines_by
-            and self.format_lines_by in all_foms
-            and self.format_lines_by not in all_vars
-            and self.format_lines_by not in foms_to_convert
-        ):
-            foms_to_convert.append(self.format_lines_by)
 
         if foms_to_convert:
             if ReportVars.FOM_ORIGIN_TYPE in results.columns:
@@ -965,7 +967,12 @@ class ScalingPlotGenerator(PlotGenerator):
                     if perf_contexts == fom_contexts:
                         merge_keys.append(ReportVars.CONTEXT_NAME)
                 if origin_key in results.columns:
-                    merge_keys.append(origin_key)
+                    perf_origins = set(
+                        results[results[ReportVars.FOM_NAME] == perf_measure][origin_key]
+                    )
+                    fom_origins = set(results[results[ReportVars.FOM_NAME] == fom_col][origin_key])
+                    if perf_origins == fom_origins:
+                        merge_keys.append(origin_key)
 
                 fom_df = (
                     results[results[ReportVars.FOM_NAME] == fom_col][
@@ -982,6 +989,10 @@ class ScalingPlotGenerator(PlotGenerator):
 
             if "_merge_origin_type" in results.columns:
                 results.drop(columns=["_merge_origin_type"], inplace=True)
+
+            if self.where:
+                logger.msg(f"Applying where query: {self.where}")
+                results = results.query(self.where)
 
         if results.empty:
             logger.warn(f"No results found matching spec {self.spec}")
