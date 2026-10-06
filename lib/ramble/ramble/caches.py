@@ -21,7 +21,7 @@ import ramble.util.path
 
 
 def _misc_cache():
-    """The ``misc_cache`` is rambles's cache for small data.
+    """The ``misc_cache`` is Ramble's cache for small data.
 
     Currently the ``misc_cache`` stores indexes for virtual dependency
     providers and for which packages provide which tags.

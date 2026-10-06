@@ -173,6 +173,7 @@ follow_imports = "skip"
 # TODO: Add more modules here for exhaustive type-checking
 module = [
     "ramble.util.*",
+    "ramble.caches",
     "ramble.error",
     "ramble.paths",
     "ramble.filters",

@@ -142,7 +142,7 @@ def test_shell_wrapper_workspace_filter_group(shell, tmpdir):
     if not shutil.which(shell):
         pytest.skip(f"{shell} not found")
 
-    setup_env = os.path.join(paths.ramble_root, "share", "ramble", _SETUP_ENV_FILE[shell])
+    setup_env = os.path.join(paths.share_path, _SETUP_ENV_FILE[shell])
     test_script_path = str(tmpdir.join(f"test_fg.{shell}"))
     ws_name = f"test_ws_fg_{shell}"
 
@@ -214,7 +214,7 @@ exit 0
             print(process.stderr)
         assert process.returncode == 0
     finally:
-        ramble_exe = os.path.join(paths.ramble_root, "bin", "ramble")
+        ramble_exe = paths.ramble_script
         subprocess.run(
             [ramble_exe, "workspace", "rm", "-y", ws_name],
             stdout=subprocess.PIPE,
