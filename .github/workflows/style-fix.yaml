@@ -84,7 +84,7 @@ jobs:
               '```',
               '/style-fix',
               '```',
-              '(or `@ramblebot fix style`)',
+              '(or `@ramblebot fix style` / `@ramblebot style fix`)',
               '',
               "...and I'll run `ramble style --fix` and amend your latest commit with the fixes.",
               '',
