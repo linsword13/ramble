@@ -37,14 +37,24 @@ workspace = RambleCommand("workspace")
     "upload_uri,upload_type,results,expected_err_msg",
     [
         (None, None, _empty_results, "No upload type"),
-        (None, "UnknownUploader", _empty_results, "Upload type UnknownUploader is not valid"),
+        (
+            None,
+            "UnknownUploader",
+            _empty_results,
+            "'UnknownUploader' is not one of",
+        ),
         (None, "BigQuery", _empty_results, "No upload URI"),
         ("fake-zeppelin", "PrintOnly", [], "Does not contain valid data to upload"),
     ],
 )
 def test_upload_results_errs(upload_uri, upload_type, results, expected_err_msg):
-    with ramble.config.override("config:upload", {"uri": upload_uri, "type": upload_type}):
-        with pytest.raises(ConfigError, match=expected_err_msg):
+    upload_cfg = {}
+    if upload_uri is not None:
+        upload_cfg["uri"] = upload_uri
+    if upload_type is not None:
+        upload_cfg["type"] = upload_type
+    with pytest.raises(ConfigError, match=expected_err_msg):
+        with ramble.config.override("config:upload", upload_cfg):
             upload_results(results)
 
 

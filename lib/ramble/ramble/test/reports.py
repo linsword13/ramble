@@ -397,7 +397,7 @@ def test_multiline_plot(mutable_mock_workspace_path, mutable_config, tmpdir_fact
     with open(results_file, "w+", encoding="utf-8") as f:
         json_util.dump(test_exp_results, f)
 
-    with ramble.config.override("config:report_dirs", results_dir_path):
+    with ramble.config.override("config:report_dirs", str(results_dir_path)):
         output = results(
             "report",
             "-f",
