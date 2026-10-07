@@ -16,6 +16,7 @@ from ramble.cmd import style
 
 from spack.util.executable import which
 
+# Test style auto-fix workflow
 style_cmd = main.RambleCommand("style")
 
 
