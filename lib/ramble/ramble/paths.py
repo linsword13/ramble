@@ -35,6 +35,7 @@ module_path: str = os.path.join(lib_path, "ramble")
 command_path: str = os.path.join(module_path, "cmd")
 test_path: str = os.path.join(module_path, "test")
 var_path: str = os.path.join(prefix, "var", "ramble")
+default_fetch_cache_path: str = os.path.join(var_path, "cache")
 share_path: str = os.path.join(prefix, "share", "ramble")
 repos_path: str = os.path.join(var_path, "repos")
 
