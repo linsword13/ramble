@@ -78,11 +78,12 @@ steps:
     id: ramble-unit-tests
     entrypoint: /bin/bash
     env:
-    - 'COMMIT_SHA=$_COMMIT_SHA'
+    - 'COMMIT_SHA=$COMMIT_SHA'
     - 'CODECOV_TOKEN=$_CODECOV_TOKEN'
     - 'PUSH_CODECOV=$_PUSH_CODECOV'
     - 'BASE_BRANCH=$_BASE_BRANCH'
     - 'PR_NUMBER=$_PR_NUMBER'
+    - 'TRIGGER_NAME=$TRIGGER_NAME'
 substitutions:
   _SPACK_REF: v0.21.2
   _PYTHON_VER: 3.11.6

@@ -89,6 +89,11 @@ if [[ "$UNIT_TEST_COVERAGE" == "true" ]]; then
 fi
 
 if [[ "$PUSH_CODECOV" ]]; then
+  if [[ "$TRIGGER_NAME" == Codecov-PR* && -z "$PR_NUMBER" ]]; then
+    echo "Error: PR_NUMBER is not set for Codecov PR trigger ($TRIGGER_NAME)."
+    exit 1
+  fi
+
   if [[ -z "$COMMIT_SHA" ]]; then
     export COMMIT_SHA=`git -C $(dirname $0) log -n 1 --format="%H"`
   fi
