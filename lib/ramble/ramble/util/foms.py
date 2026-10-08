@@ -16,10 +16,33 @@ NULL_CONTEXT = "null"
 
 # For a FOM, the direction that is 'better' e.g., faster is better
 class BetterDirection(Enum):
-    HIGHER = 1
-    LOWER = 2
-    INDETERMINATE = 3  # requires interpretation or FOM type not defined
-    INAPPLICABLE = 4  # non-numerical or no direction is 'better', like strings or categories
+    _description: str
+
+    HIGHER = (1, "higher is better")
+    LOWER = (2, "lower is better")
+    INDETERMINATE = (3, "")  # requires interpretation or FOM type not defined
+    INAPPLICABLE = (4, "")  # non-numerical or no direction is 'better', like strings or categories
+
+    def __new__(cls, value, description):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj._description = description
+        return obj
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+    def as_str(self) -> str:
+        """Returns the human-readable description (e.g., 'higher is better')."""
+        return self.description
+
+    def suffix(self) -> str:
+        """Returns the direction suffix formatted in parentheses, or empty string."""
+        return f" ({self.description})" if self.description else ""
+
+    def __str__(self) -> str:
+        return self.as_str()
 
     @classmethod
     def from_str(cls, string):
@@ -27,6 +50,19 @@ class BetterDirection(Enum):
             return cls[string.upper()]
         except KeyError:
             return None
+
+    @classmethod
+    def from_value(cls, val):
+        """Coerce a BetterDirection enum, string, int, or None to a BetterDirection."""
+        if isinstance(val, cls):
+            return val
+        if isinstance(val, str):
+            return cls.from_str(val)
+        if isinstance(val, int):
+            for member in cls:
+                if member._value_ == val:
+                    return member
+        return None
 
 
 class FomType(Enum):
@@ -47,15 +83,54 @@ class FomType(Enum):
     - ``UNDEFINED``: Default when no FOM type is specified.
     """
 
-    TIME = 1
-    THROUGHPUT = 2
-    MEASURE = 3
-    CATEGORY = 4
-    INFO = 5
-    UNDEFINED = 6
+    _title: str
+    _default_better_direction: BetterDirection
+
+    THROUGHPUT = (1, "Throughput", BetterDirection.HIGHER)
+    TIME = (2, "Time", BetterDirection.LOWER)
+    MEASURE = (3, "Measure", BetterDirection.INDETERMINATE)
+    CATEGORY = (4, "Categorical", BetterDirection.INAPPLICABLE)
+    INFO = (5, "Informational", BetterDirection.INAPPLICABLE)
+    UNDEFINED = (6, "Undefined", BetterDirection.INDETERMINATE)
+
+    def __new__(cls, value, title, default_better_direction):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj._title = title
+        obj._default_better_direction = default_better_direction
+        return obj
+
+    @property
+    def title(self) -> str:
+        return self._title
+
+    @property
+    def default_better_direction(self) -> BetterDirection:
+        return self._default_better_direction
 
     def better_direction(self):
-        return _FOM_TYPE_DIRECTIONS[self]
+        return self.default_better_direction
+
+    def group_title(self, better_direction=None) -> str:
+        """Returns the formatted group title for result index sections."""
+        if better_direction is None:
+            bd = self.better_direction()
+        else:
+            bd = BetterDirection.from_value(better_direction)
+        suffix = bd.suffix() if bd else ""
+        return f"{self.title} FOMs{suffix}"
+
+    def formatted_str(self, better_direction=None) -> str:
+        """Returns the display string for this FOM type with direction suffix."""
+        if better_direction is None:
+            bd = self.better_direction()
+        else:
+            bd = BetterDirection.from_value(better_direction)
+        suffix = bd.suffix() if bd else ""
+        return f"{self.title}{suffix}"
+
+    def __str__(self) -> str:
+        return self.formatted_str()
 
     def copy(self):
         return copy.deepcopy(self)
@@ -65,32 +140,37 @@ class FomType(Enum):
         try:
             return cls[string.upper()]
         except KeyError:
+            for member in cls:
+                if string.upper() == member.title.upper():
+                    return member
             return None
+
+    @classmethod
+    def from_value(cls, val):
+        """Coerce a FomType enum member, serialized dictionary, string, int,
+        or None to a FomType.
+        """
+        if isinstance(val, cls):
+            return val
+        if isinstance(val, dict) and "name" in val:
+            return cls.from_str(str(val["name"]))
+        if isinstance(val, str):
+            return cls.from_str(val)
+        if isinstance(val, int):
+            for member in cls:
+                if member._value_ == val:
+                    return member
+        return None
 
     def to_dict(self):
         """Converts the FomType enum member to a dictionary representation."""
-        return _FOM_TYPE_DICTS[self]
+        return {"name": self.name, "better_direction": self.default_better_direction.name}
 
 
 class SummaryFoms(str, Enum):
     SUMMARY = "Experiment Summary"
     N_TOTAL = "n_total_repeats"
     N_SUCCESS = "n_success_repeats"
-
-
-_FOM_TYPE_DIRECTIONS = {
-    FomType.TIME: BetterDirection.LOWER,
-    FomType.THROUGHPUT: BetterDirection.HIGHER,
-    FomType.MEASURE: BetterDirection.INDETERMINATE,
-    FomType.CATEGORY: BetterDirection.INAPPLICABLE,
-    FomType.INFO: BetterDirection.INAPPLICABLE,
-    FomType.UNDEFINED: BetterDirection.INDETERMINATE,
-}
-
-_FOM_TYPE_DICTS = {
-    member: {"name": member.name, "better_direction": _FOM_TYPE_DIRECTIONS[member].name}
-    for member in FomType
-}
 
 
 # Try to import the internal parser for the re module

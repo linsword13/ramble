@@ -488,3 +488,9 @@ def test_info_attributes_with_spaces():
     out = info("gromacs", "--attributes", "maintainers, workloads")
     assert "maintainers" in out
     assert "workloads" in out
+
+
+def test_info_fom_type_formatting():
+    out = info("intel-mpi-benchmarks", "-v", "--attrs", "figures_of_merit")
+    assert "fom_type: Undefined" in out
+    assert "FomType.UNDEFINED" not in out
