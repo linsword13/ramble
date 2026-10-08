@@ -180,3 +180,51 @@ internals:
     validator = ramble.schema.Validator(ramble.schema.internals.schema)
     errors = [e.message for e in validator.iter_errors(data)]
     assert any("is not of type 'boolean'" in e for e in errors), errors
+
+
+@pytest.mark.parametrize(
+    "invalid_config",
+    [
+        {"config": {"shell": "invalid_shell"}},
+        {"config": {"stage_method": "invalid_method"}},
+        {"config": {"repeat_success_strict": "not_a_bool"}},
+        {"config": {"spack": {"unknown_subkey": True}}},
+        {"config": {"pip": {"unknown_subkey": True}}},
+        {"config": {"upload": {"push_failed": "not_a_bool"}}},
+        {"config": {"upload": {"unknown_subkey": True}}},
+    ],
+)
+def test_config_schema_rejects_invalid_ramble_options(invalid_config):
+    """Ensure Ramble-specific config options are validated against ramble.schema.config."""
+    import ramble.schema.config
+
+    with pytest.raises(ramble.config.ConfigFormatError):
+        ramble.config.validate(invalid_config, ramble.schema.config.schema)
+
+
+def test_config_schema_valid_options_and_types():
+    """Verify valid Ramble config options pass schema validation and type inference."""
+    import ramble.schema.config
+
+    import spack.schema.config
+
+    assert "shell" in ramble.schema.config.properties["config"]["properties"]
+    assert "shell" not in spack.schema.config.properties["config"]["properties"]
+
+    valid_config = {
+        "config": {
+            "shell": "bash",
+            "n_repeats": 2,
+            "resolve_variables_in_subprocesses": True,
+            "include_phase_dependencies": False,
+            "stage_method": "symbolic_link",
+            "pip": {"install": {"flags": ["--no-deps"]}},
+            "spack": {"install": {"flags": "--fresh"}},
+            "aliases": {"l": "list"},
+        }
+    }
+    ramble.config.validate(valid_config, ramble.schema.config.schema)
+
+    assert isinstance(ramble.config.get_valid_type("config:pip:install:flags"), list)
+    assert isinstance(ramble.config.get_valid_type("config:spack:install:flags"), str)
+    assert isinstance(ramble.config.get_valid_type("config:repeat_success_strict"), bool)

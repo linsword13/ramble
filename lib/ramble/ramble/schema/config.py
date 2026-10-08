@@ -12,21 +12,32 @@
    :lines: 15-
 """
 
+import copy
 from typing import Any, Dict
 
 import spack.schema.config
 
 #: Properties for inclusion in other schemas
 properties: Dict[str, Any] = {
-    "config": {**spack.schema.config.properties["config"]},
+    "config": copy.deepcopy(spack.schema.config.properties["config"]),
 }
 
-properties["config"]["shell"] = {"type": "string", "enum": ["sh", "bash", "csh", "tcsh", "fish"]}
+config_props = properties["config"]["properties"]
 
-properties["config"]["spack"] = {
+config_props["shell"] = {
+    "type": "string",
+    "enum": ["sh", "bash", "csh", "tcsh", "fish"],
+    "default": "bash",
+}
+
+config_props["spack"] = {
     "type": "object",
     "default": {"install": {"flags": "--fresh"}, "concretize": {"flags": "--fresh"}},
     "properties": {
+        "flags": {
+            "type": "object",
+            "default": {},
+        },
         "global": {
             "type": "object",
             "default": {"flags": ""},
@@ -118,18 +129,11 @@ properties["config"]["spack"] = {
             },
             "additionalProperties": False,
         },
-        "resolve_variables_in_subprocesses": {
-            "type": "boolean",
-            "default": False,
-            "additionalProperties": False,
-        },
     },
     "additionalProperties": False,
 }
 
-properties["config"]["spack"]["flags"] = {}
-
-properties["config"]["pip"] = {
+config_props["pip"] = {
     "type": "object",
     "default": {"install": {"flags": []}},
     "properties": {
@@ -150,59 +154,72 @@ properties["config"]["pip"] = {
     "additionalProperties": False,
 }
 
-properties["config"]["input_cache"] = {"type": "string", "default": "$ramble/var/ramble/cache"}
+config_props["input_cache"] = {"type": "string", "default": "$ramble/var/ramble/cache"}
 
-properties["config"]["workspace_dirs"] = {
+config_props["workspace_dirs"] = {
     "type": ["string", "array"],
     "items": {"type": "string"},
     "default": "$ramble/var/ramble/workspaces",
 }
 
-properties["config"]["report_dirs"] = {
+config_props["report_dirs"] = {
     "type": "string",
     "default": "~/.ramble/reports",
 }
 
-properties["config"]["upload"] = {
+config_props["upload"] = {
     "type": "object",
     "properties": {
         "uri": {"type": "string", "default": ""},
         "push_failed": {"type": "boolean", "default": True},
         "type": {
             "type": "string",
-            "default": "BigQuery",
             "enum": ["BigQuery", "PrintOnly", "SQLite"],
+            "default": "BigQuery",
         },
     },
+    "additionalProperties": False,
 }
 
-properties["config"]["user"] = {"type": "string", "default": ""}
+config_props["user"] = {"type": "string", "default": ""}
 
-properties["config"]["disable_passthrough"] = {"type": "boolean", "default": False}
+config_props["disable_passthrough"] = {"type": "boolean", "default": False}
 
-properties["config"]["disable_progress_bar"] = {"type": "boolean", "default": False}
+config_props["disable_progress_bar"] = {"type": "boolean", "default": False}
 
-properties["config"]["disable_logger"] = {"type": "boolean", "default": False}
+config_props["disable_logger"] = {"type": "boolean", "default": False}
 
-properties["config"]["aggregate_warnings"] = {"type": "boolean", "default": False}
+config_props["aggregate_warnings"] = {"type": "boolean", "default": False}
 
-properties["config"]["suppress_warnings"] = {"type": "boolean", "default": False}
+config_props["suppress_warnings"] = {"type": "boolean", "default": False}
 
-properties["config"]["n_repeats"] = {"type": "string", "default": "0"}
+config_props["n_repeats"] = {"type": ["string", "integer"], "default": "0"}
 
-properties["config"]["repeat_success_strict"] = {"type": "boolean", "default": True}
+config_props["repeat_success_strict"] = {"type": "boolean", "default": True}
 
-properties["config"]["enable_workspace_prompt"] = {"type": "boolean", "default": False}
+config_props["enable_workspace_prompt"] = {"type": "boolean", "default": False}
 
-properties["config"]["enable_strict_versions"] = {"type": "boolean", "default": True}
+config_props["enable_strict_versions"] = {"type": "boolean", "default": True}
 
-properties["config"]["overwrite_inventories"] = {"type": "boolean", "default": False}
+config_props["overwrite_inventories"] = {"type": "boolean", "default": False}
 
-properties["config"]["generate_file_editing_scripts"] = {"type": "boolean", "default": True}
+config_props["generate_file_editing_scripts"] = {"type": "boolean", "default": True}
 
-properties["config"]["bootstrap_utilities"] = {"type": "boolean", "default": True}
+config_props["bootstrap_utilities"] = {"type": "boolean", "default": True}
 
-properties["config"]["stage_method"] = {
+config_props["include_phase_dependencies"] = {"type": "boolean", "default": False}
+
+config_props["resolve_variables_in_subprocesses"] = {"type": "boolean", "default": False}
+
+config_props["archive_url"] = {"type": "string", "default": ""}
+
+config_props["aliases"] = {
+    "type": "object",
+    "default": {},
+    "additionalProperties": {"type": "string"},
+}
+
+config_props["stage_method"] = {
     "type": "string",
     "enum": ["cp", "rsync", "symbolic_link", "hard_link"],
     "default": "cp",
