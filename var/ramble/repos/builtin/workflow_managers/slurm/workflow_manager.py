@@ -22,13 +22,17 @@ from spack.util.executable import (
 # Mapping from squeue/sacct status to Ramble status
 _STATUS_MAP = {
     "PD": ExperimentStatus.SUBMITTED,
+    "PENDING": ExperimentStatus.SUBMITTED,
     "R": ExperimentStatus.RUNNING,
+    "RUNNING": ExperimentStatus.RUNNING,
     "CF": ExperimentStatus.SETUP,
+    "CONFIGURING": ExperimentStatus.SETUP,
     # Regard completing as complete
     "CG": ExperimentStatus.COMPLETE,
     "COMPLETING": ExperimentStatus.COMPLETE,
-    "CA": ExperimentStatus.COMPLETE,
+    "CD": ExperimentStatus.COMPLETE,
     "COMPLETED": ExperimentStatus.COMPLETE,
+    "CA": ExperimentStatus.CANCELLED,
     "CANCELLED": ExperimentStatus.CANCELLED,
     "CANCELLED+": ExperimentStatus.CANCELLED,
     "F": ExperimentStatus.FAILED,
@@ -247,14 +251,9 @@ class Slurm(WorkflowManagerBase):
         except (ProcessError, ValueError, OSError, CommandNotFoundError) as e:
             logger.warn(f"Failed to get job end time with error {e}")
         else:
-            fom_key = "slurm-job-termination-overhead"
-            self.figure_of_merit(
-                "job-termination-overhead",
-                units="s",
-                fom_map_key=fom_key,
-                fom_type=FomType.TIME,
+            self.add_inmem_fom_value(
+                "slurm-job-termination-overhead", duration
             )
-            self.add_inmem_fom_value(fom_key, duration)
 
     def _prepare_analysis(self, workspace):
         if workspace.dry_run:
@@ -319,6 +318,13 @@ class Slurm(WorkflowManagerBase):
         group_name="val",
         units="s",
         log_file="{experiment_run_dir}/.slurm_job_info",
+        fom_type=FomType.TIME,
+    )
+
+    figure_of_merit(
+        "job-termination-overhead",
+        units="s",
+        fom_map_key="slurm-job-termination-overhead",
         fom_type=FomType.TIME,
     )
 
