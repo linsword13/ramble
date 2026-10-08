@@ -17,6 +17,7 @@ import ramble.spec
 import ramble.util.colors as color
 from ramble.cmd.common import arguments
 from ramble.definitions.variables import Variable
+from ramble.util.foms import BetterDirection, FomType
 from ramble.util.logger import logger
 
 supported_formats = enum.Enum("supported_formats", ["text", "lists"])
@@ -224,6 +225,16 @@ def _print_verbose_dict_attr(internal_attr, pattern="*", indentation=(" " * 4)):
                 if isinstance(sub_val, Variable) and sub_name == sub_val.name:
                     color.cprint(f"{indentation}{sub_val}")
                 else:
+                    if sub_name == "fom_type":
+                        if isinstance(sub_val, dict) and "name" in sub_val:
+                            f_type = FomType.from_value(sub_val.get("name"))
+                            b_dir = BetterDirection.from_value(sub_val.get("better_direction"))
+                            if f_type:
+                                sub_val = f_type.formatted_str(b_dir)
+                        elif isinstance(sub_val, str):
+                            f_type = FomType.from_value(sub_val)
+                            if f_type:
+                                sub_val = f_type
                     color_sub_name = color.nested_1(sub_name)
                     color.cprint(f"{indentation}{color_sub_name}: {sub_val}")
             color.cprint("")

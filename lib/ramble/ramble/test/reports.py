@@ -64,7 +64,10 @@ def create_test_fom_result(
         "origin_type": origin_type,
     }
     if fom_type is not None:
-        fom_dict["fom_type"] = foms.FomType.to_dict(fom_type)
+        if isinstance(fom_type, dict):
+            fom_dict["fom_type"] = fom_type
+        else:
+            fom_dict["fom_type"] = foms.FomType.to_dict(fom_type)
     return fom_dict
 
 
@@ -477,7 +480,7 @@ def test_multiline_format_lines_by(
 
     monkeypatch.setattr(ramble.reports.MultiLinePlot, "write", spy_write)
 
-    with ramble.config.override("config:report_dirs", results_dir_path):
+    with ramble.config.override("config:report_dirs", str(results_dir_path)):
         output = results(
             "report",
             "-f",
@@ -620,7 +623,7 @@ def test_multiline_format_lines_by_categorical_fom(
 
     monkeypatch.setattr(ramble.reports.MultiLinePlot, "write", spy_write)
 
-    with ramble.config.override("config:report_dirs", results_dir_path):
+    with ramble.config.override("config:report_dirs", str(results_dir_path)):
         output = results(
             "report",
             "-f",
@@ -1537,8 +1540,7 @@ def test_generate_result_index_with_modifier_foms():
     ]
     idx = ramble.reports.generate_result_index(test_exps)
     assert "modifiers" in idx
-    assert "my_modifier" in idx["modifiers"]
-    assert "mod_fom" in idx["modifiers"]["my_modifier"]["FOMs"]
+    assert "mod_fom" in idx["modifiers"]["my_modifier"]["Undefined FOMs"]
 
 
 def test_name_simplification_edge_cases():
@@ -1550,7 +1552,7 @@ def test_name_simplification_edge_cases():
 
 
 def test_get_reports_path_missing_config(mutable_config):
-    ramble.config.set("config:report_dirs", None)
+    ramble.config.set("config:report_dirs", "")
     with pytest.raises(SystemExit):
         ramble.reports.get_reports_path()
 
@@ -1575,11 +1577,85 @@ def test_generate_result_index_categorical_foms():
     idx = ramble.reports.generate_result_index(test_exps)
     assert "Categorical FOMs" in idx["applications"]["app"]["wl"]
     assert "mode" in idx["applications"]["app"]["wl"]["Categorical FOMs"]
-    assert "fom_1" in idx["applications"]["app"]["wl"]["FOMs"]
-    assert "mode" not in idx["applications"]["app"]["wl"]["FOMs"]
+    assert "fom_1" in idx["applications"]["app"]["wl"]["Time FOMs (lower is better)"]
+    assert "mode" not in idx["applications"]["app"]["wl"]["Time FOMs (lower is better)"]
 
     assert "Categorical FOMs" in idx["modifiers"]["my_mod"]
     assert "mod_cat" in idx["modifiers"]["my_mod"]["Categorical FOMs"]
 
     assert ramble.reports.get_categorical_foms(idx) == {"mode", "mod_cat"}
     assert ramble.reports.get_all_foms(idx) == {"fom_1", "mode", "mod_cat"}
+
+
+def test_generate_result_index_fom_groupings():
+    test_exps = [
+        create_test_exp_result(
+            ramble_status="SUCCESS",
+            experiment_name="exp_1",
+            application_name="app",
+            workload_name="wl",
+            foms=[
+                ("null", ("bw", 100.0, "MB/s", "app", "application", foms.FomType.THROUGHPUT)),
+                ("null", ("lat", 1.5, "us", "app", "application", foms.FomType.TIME)),
+                (
+                    "null",
+                    (
+                        "eff",
+                        95.0,
+                        "%",
+                        "app",
+                        "application",
+                        {"name": "MEASURE", "better_direction": "HIGHER"},
+                    ),
+                ),
+                (
+                    "null",
+                    (
+                        "cost",
+                        12.0,
+                        "$",
+                        "app",
+                        "application",
+                        {"name": "MEASURE", "better_direction": "LOWER"},
+                    ),
+                ),
+                ("null", ("ratio", 1.2, "", "app", "application", foms.FomType.MEASURE)),
+                ("null", ("env", "prod", "", "app", "application", foms.FomType.CATEGORY)),
+                ("null", ("host", "node01", "", "app", "application", foms.FomType.INFO)),
+                ("null", ("legacy", 42, "", "app", "application", foms.FomType.UNDEFINED)),
+            ],
+            ramble_vars={"repeat_index": "0"},
+            ramble_raw_vars={},
+            n_nodes=1,
+        )
+    ]
+    idx = ramble.reports.generate_result_index(test_exps)
+    wl_idx = idx["applications"]["app"]["wl"]
+
+    assert "Throughput FOMs (higher is better)" in wl_idx
+    assert "bw" in wl_idx["Throughput FOMs (higher is better)"]
+
+    assert "Time FOMs (lower is better)" in wl_idx
+    assert "lat" in wl_idx["Time FOMs (lower is better)"]
+
+    assert "Measure FOMs (higher is better)" in wl_idx
+    assert "eff" in wl_idx["Measure FOMs (higher is better)"]
+
+    assert "Measure FOMs (lower is better)" in wl_idx
+    assert "cost" in wl_idx["Measure FOMs (lower is better)"]
+
+    assert "Measure FOMs" in wl_idx
+    assert "ratio" in wl_idx["Measure FOMs"]
+
+    assert "Categorical FOMs" in wl_idx
+    assert "env" in wl_idx["Categorical FOMs"]
+
+    assert "Informational FOMs" in wl_idx
+    assert "host" in wl_idx["Informational FOMs"]
+
+    assert "Undefined FOMs" in wl_idx
+    assert "legacy" in wl_idx["Undefined FOMs"]
+
+    all_foms = ramble.reports.get_all_foms(idx)
+    assert all_foms == {"bw", "lat", "eff", "cost", "ratio", "env", "host", "legacy"}
+    assert ramble.reports.get_categorical_foms(idx) == {"env"}

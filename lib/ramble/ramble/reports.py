@@ -331,6 +331,37 @@ def filter_exp_results(experiments: list):
     return filtered_exps
 
 
+def get_fom_group_title(fom: dict) -> str:
+    """Returns the display group title for a FOM based on its type and better direction."""
+    fom_type = FomType.from_value(fom.get("fom_type")) or FomType.UNDEFINED
+
+    raw_fom_type = fom.get("fom_type")
+    better_direction = None
+    if isinstance(raw_fom_type, dict) and ReportVars.BETTER_DIRECTION in raw_fom_type:
+        better_direction = BetterDirection.from_value(raw_fom_type[ReportVars.BETTER_DIRECTION])
+    elif fom.get(ReportVars.BETTER_DIRECTION):
+        better_direction = BetterDirection.from_value(fom[ReportVars.BETTER_DIRECTION])
+
+    return fom_type.group_title(better_direction)
+
+
+def _attr_sort_key(attr_name: str) -> tuple:
+    order = (
+        ["Contexts"]
+        + [f"{fom_type.title} FOMs" for fom_type in FomType]
+        + [
+            "Template Variables",
+            "Experiment Summary",
+            "FOM Summary Statistics",
+            "All Variables",
+        ]
+    )
+    for idx, prefix in enumerate(order):
+        if attr_name == prefix or attr_name.startswith(prefix):
+            return (idx, attr_name)
+    return (len(order), attr_name)
+
+
 def generate_result_index(experiments: list, all_vars=False, where_query=None):
     """Creates an index from the results in the list of experiments
 
@@ -370,7 +401,6 @@ def generate_result_index(experiments: list, all_vars=False, where_query=None):
         if wl_name not in app_dict:
             app_dict[wl_name] = {
                 "Contexts": set(),
-                "FOMs": set(),
                 "Template Variables": set(),
             }
         if app_name not in template_patterns:
@@ -402,7 +432,6 @@ def generate_result_index(experiments: list, all_vars=False, where_query=None):
                 continue
             app_dict[wl_name]["Contexts"].add(context["name"])
             for fom in context["foms"]:
-                is_cat = FomType.from_value(fom.get("fom_type")) == FomType.CATEGORY
                 if fom["origin"] == app_name:
                     # If it's a repeat summary, add summary FOMs and stat names
                     if fom["name"] == SummaryFoms.SUMMARY.value:
@@ -417,24 +446,20 @@ def generate_result_index(experiments: list, all_vars=False, where_query=None):
                                 app_dict[wl_name]["FOM Summary Statistics"] = set()
                             app_dict[wl_name]["FOM Summary Statistics"].add(summary_shortname)
 
-                        if is_cat:
-                            if "Categorical FOMs" not in app_dict[wl_name]:
-                                app_dict[wl_name]["Categorical FOMs"] = set()
-                            app_dict[wl_name]["Categorical FOMs"].add(fom["name"])
-                        else:
-                            app_dict[wl_name]["FOMs"].add(fom["name"])
+                        group_title = get_fom_group_title(fom)
+                        if group_title not in app_dict[wl_name]:
+                            app_dict[wl_name][group_title] = set()
+                        app_dict[wl_name][group_title].add(fom["name"])
                 else:
                     # All other objects
                     if fom["origin_type"] in OBJECT_NAMES:
                         obj_dict = result_index[OBJECT_NAMES[fom["origin_type"]]]
                         if fom["origin"] not in obj_dict:
-                            obj_dict[fom["origin"]] = {"FOMs": set()}
-                        if is_cat:
-                            if "Categorical FOMs" not in obj_dict[fom["origin"]]:
-                                obj_dict[fom["origin"]]["Categorical FOMs"] = set()
-                            obj_dict[fom["origin"]]["Categorical FOMs"].add(fom["name"])
-                        else:
-                            obj_dict[fom["origin"]]["FOMs"].add(fom["name"])
+                            obj_dict[fom["origin"]] = {}
+                        group_title = get_fom_group_title(fom)
+                        if group_title not in obj_dict[fom["origin"]]:
+                            obj_dict[fom["origin"]][group_title] = set()
+                        obj_dict[fom["origin"]][group_title].add(fom["name"])
 
     # Extract template variables used to parameterize experiments
     capture_group = r"(\w+)"
@@ -451,6 +476,17 @@ def generate_result_index(experiments: list, all_vars=False, where_query=None):
                 "Template Variables"
             ] = expansion_strs
 
+    for app_dict in result_index.get(namespace.application, {}).values():
+        for wl_name, wl_dict in app_dict.items():
+            app_dict[wl_name] = dict(sorted(wl_dict.items(), key=lambda x: _attr_sort_key(x[0])))
+
+    for obj_name, obj_dict in result_index.items():
+        if obj_name != namespace.application:
+            for entity_name, entity_dict in obj_dict.items():
+                obj_dict[entity_name] = dict(
+                    sorted(entity_dict.items(), key=lambda x: _attr_sort_key(x[0]))
+                )
+
     return result_index
 
 
@@ -460,14 +496,16 @@ def get_all_foms(result_index):
         if obj_type == namespace.application:
             for app_dict in obj_type_dict.values():
                 for wl_dict in app_dict.values():
-                    all_foms.update(wl_dict.get("FOMs", set()))
-                    all_foms.update(wl_dict.get("Categorical FOMs", set()))
-                    if SummaryFoms.SUMMARY.value in wl_dict:
-                        all_foms.update(wl_dict[SummaryFoms.SUMMARY.value])
+                    for attr_name, vals in wl_dict.items():
+                        if (
+                            "FOMs" in attr_name or attr_name == SummaryFoms.SUMMARY.value
+                        ) and isinstance(vals, set):
+                            all_foms.update(vals)
         else:
             for obj_dict in obj_type_dict.values():
-                all_foms.update(obj_dict.get("FOMs", set()))
-                all_foms.update(obj_dict.get("Categorical FOMs", set()))
+                for attr_name, vals in obj_dict.items():
+                    if "FOMs" in attr_name and isinstance(vals, set):
+                        all_foms.update(vals)
 
     return all_foms
 
