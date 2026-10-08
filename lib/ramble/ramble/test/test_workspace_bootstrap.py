@@ -12,6 +12,7 @@ import ramble.config
 import ramble.filters
 import ramble.pipeline
 import ramble.workspace
+from ramble.main import RambleCommand
 
 
 def test_workspace_bootstrap_utilities(mutable_config, mutable_mock_workspace_path, monkeypatch):
@@ -81,3 +82,55 @@ def test_workspace_bootstrap_utilities(mutable_config, mutable_mock_workspace_pa
     assert ext_dep_dir.endswith(os.path.join("bootstrapped_utilities", "spack", "v2.0", "source"))
     assert "utility::spack::activation_command" in app_inst.variables
     assert "source" in app_inst.variables["utility::spack::activation_command"]
+
+
+def test_workspace_bootstrap_utilities_from_modifier(
+    mutable_config,
+    mutable_mock_workspace_path,
+    mock_applications,
+    mock_modifiers,
+    workspace_name,
+):
+    workspace = RambleCommand("workspace")
+    global_args = ["-w", workspace_name]
+
+    with ramble.workspace.create(workspace_name):
+        workspace(
+            "manage",
+            "experiments",
+            "basic",
+            "--wf",
+            "test_wl",
+            "-v",
+            "n_ranks=1",
+            "-v",
+            "n_nodes=1",
+            "-v",
+            "processes_per_node=1",
+            global_args=global_args,
+        )
+        workspace(
+            "manage",
+            "modifiers",
+            "--add",
+            "--name",
+            "requires-utility-mod",
+            "--scope",
+            "workspace",
+            global_args=global_args,
+        )
+
+        ws = ramble.workspace.active_workspace()
+        filters = ramble.filters.Filters()
+        setup_pipeline = ramble.pipeline.SetupPipeline(ws, filters)
+        ws.dry_run = True
+        with ramble.config.override("config:bootstrap_utilities", True):
+            setup_pipeline.run()
+
+        app_inst = next(iter(setup_pipeline.experiment_set.experiments.values()))
+        assert hasattr(app_inst, "_bootstrapped_utility_paths")
+        assert "spack" in app_inst._bootstrapped_utility_paths
+        ext_dep_dir = app_inst._bootstrapped_utility_paths["spack"]
+        assert ext_dep_dir.endswith(
+            os.path.join("bootstrapped_utilities", "spack", "v1.5", "source")
+        )

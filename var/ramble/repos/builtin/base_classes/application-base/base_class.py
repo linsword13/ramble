@@ -2737,8 +2737,8 @@ class ApplicationBase(ObjectMixin, metaclass=DirectiveMeta):
             objects_to_check.append(self.platform)
         if hasattr(self, "workflow_manager") and self.workflow_manager:
             objects_to_check.append(self.workflow_manager)
-        if hasattr(self, "_modifiers") and self._modifiers:
-            objects_to_check.extend(self._modifiers)
+        if hasattr(self, "_modifier_instances") and self._modifier_instances:
+            objects_to_check.extend(self._modifier_instances)
 
         ws_ext_deps = (
             workspace._get_workspace_dict()

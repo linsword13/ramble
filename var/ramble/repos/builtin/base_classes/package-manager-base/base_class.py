@@ -148,8 +148,11 @@ class PackageManagerBase(ObjectMixin, metaclass=DirectiveMeta):
                     obj = getattr(app_inst, attr, None)
                     if obj:
                         ordered_objects.append(obj)
-                if hasattr(app_inst, "_modifiers") and app_inst._modifiers:
-                    ordered_objects.extend(app_inst._modifiers)
+                if (
+                    hasattr(app_inst, "_modifier_instances")
+                    and app_inst._modifier_instances
+                ):
+                    ordered_objects.extend(app_inst._modifier_instances)
         if self not in ordered_objects:
             ordered_objects.insert(0, self)
 
