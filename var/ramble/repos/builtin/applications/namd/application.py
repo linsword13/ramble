@@ -382,18 +382,13 @@ class Namd(ExecutableApplication):
         units="MB",
     )
 
-    namd_nspd_stat_file = os.path.join(
-        Expander.expansion_str("experiment_run_dir"), "namd_nspd_stat.out"
-    )
     figure_of_merit(
         "Nanoseconds per day",
-        log_file=namd_nspd_stat_file,
-        fom_regex=r"(?P<ns_per_day>[0-9]+\.*[0-9]*) ns/day",
-        group_name="ns_per_day",
+        fom_map_key="ns_per_day",
         units="ns/day",
     )
 
-    def _analyze_experiments(self, workspace, app_inst=None):
+    def _prepare_analysis(self, workspace, app_inst=None):
         """Generate ns/day metric for the experiment"""
 
         log_path = self.expander.expand_var(self.log_file_str)
@@ -409,14 +404,4 @@ class Namd(ExecutableApplication):
                         dpns = float(match.group("days_per_ns"))
 
         if dpns:
-            nspd = 1.0 / dpns
-            nspd_file_path = os.path.join(
-                self.expander.expand_var(
-                    self.expander.expansion_str(keywords.experiment_run_dir)
-                ),
-                "namd_nspd_stat.out",
-            )
-            with open(nspd_file_path, "w+", encoding="utf-8") as f:
-                f.write(f"{nspd} ns/day\n")
-
-        super()._analyze_experiments(workspace)
+            self.add_inmem_fom_value("ns_per_day", 1.0 / dpns)
