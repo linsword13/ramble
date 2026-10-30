@@ -656,6 +656,9 @@ class Expander:
     application_version = _cached_keyword_property("application_version")
     workload_name = _cached_keyword_property("workload_name")
     experiment_name = _cached_keyword_property("experiment_name")
+    application_namespace = _cached_keyword_property("application_namespace")
+    workload_namespace = _cached_keyword_property("workload_namespace")
+    experiment_namespace = _cached_keyword_property("experiment_namespace")
     env_path = _cached_keyword_property("env_path")
     application_input_dir = _cached_keyword_property("application_input_dir")
     workload_input_dir = _cached_keyword_property("workload_input_dir")
@@ -663,18 +666,6 @@ class Expander:
     application_run_dir = _cached_keyword_property("application_run_dir")
     workload_run_dir = _cached_keyword_property("workload_run_dir")
     experiment_run_dir = _cached_keyword_property("experiment_run_dir")
-
-    @property
-    def application_namespace(self):
-        return self.application_spec
-
-    @property
-    def workload_namespace(self):
-        return f"{self.application_spec}.{self.workload_name}"
-
-    @property
-    def experiment_namespace(self):
-        return f"{self.application_spec}.{self.workload_name}.{self.experiment_name}"
 
     @contextmanager
     def preserve_escaped_braces(self):
