@@ -29,6 +29,10 @@ from ramble.util.foms import get_literal_from_regex
         (r"^[0-9]+$", ""),
         (r"^\s*$", ""),
         (r"hello\sworld", "hello"),
+        # Case-insensitive regexes should bail out from using the pre-filter
+        (r"(?i).*error.*", ""),
+        (r"(?i)FATAL: (?P<msg>.*)", ""),
+        (r"(?i:error) found", "found"),
         # Invalid regex
         (r"hello(w", ""),
     ],
